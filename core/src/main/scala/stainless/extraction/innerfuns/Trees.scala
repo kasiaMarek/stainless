@@ -8,7 +8,7 @@ import inox.utils.{NoPosition, Position}
 trait Trees extends inlining.Trees with Definitions { self =>
 
   case class LetRec(fds: Seq[LocalFunDef], body: Expr) extends Expr with CachingTyped {
-    protected def computeType(using s: Symbols): Type = {
+    protected def computeType(using s: Symbols, options: TypeComputeOptions): Type = {
       if (fds.forall { case fd @ LocalFunDef(_, _, _, _, fullBody, _) =>
         s.isSubtypeOf(fullBody.getType, fd.getType)
       }) body.getType else Untyped
@@ -22,7 +22,7 @@ trait Trees extends inlining.Trees with Definitions { self =>
     tps: Seq[Type],
     args: Seq[Expr]
   ) extends Expr with CachingTyped {
-    protected def computeType(using Symbols): Type = {
+    protected def computeType(using Symbols, TypeComputeOptions): Type = {
       val tpMap = (tparams zip tps).toMap
       val realFrom = tpe.from.map(tpe => typeOps.instantiateType(tpe.getType, tpMap))
       val realTo = typeOps.instantiateType(tpe.to.getType, tpMap)

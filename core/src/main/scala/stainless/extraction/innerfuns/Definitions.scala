@@ -14,7 +14,7 @@ trait Definitions extends extraction.Trees { self: Trees =>
     fullBody: Expr,
     flags: Seq[Flag]
   ) extends Definition {
-    def getType(using Symbols): Type = returnType.getType
+    def getType(using s: Symbols, options: TypeComputeOptions = TypeComputeOptions.NoOptions): Type = returnType.getType
 
     def freeVariables: Set[Variable] =
       tparams.flatMap(tpd => typeOps.variablesOf(tpd.tp)).toSet ++

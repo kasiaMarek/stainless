@@ -22,17 +22,17 @@ trait Trees extends throwing.Trees { self =>
 
   /** $encodingof `this` */
   case class This(ct: ClassType) extends Expr with Terminal {
-    def getType(using Symbols): Type = ct.getType
+    def getType(using s: Symbols, options: TypeComputeOptions = TypeComputeOptions.NoOptions): Type = ct.getType
   }
 
   /** $encodingof `super` */
   case class Super(ct: ClassType) extends Expr with Terminal {
-    def getType(using Symbols): Type = ct.getType
+    def getType(using s: Symbols, options: TypeComputeOptions = TypeComputeOptions.NoOptions): Type = ct.getType
   }
 
   /** $encodingof `receiver.id[tps](args)` */
   case class MethodInvocation(receiver: Expr, id: Identifier, tps: Seq[Type], args: Seq[Expr]) extends Expr with CachingTyped {
-    protected def computeType(using s: Symbols): Type = widenTypeParameter(receiver) match {
+    protected def computeType(using s: Symbols, options: TypeComputeOptions): Type = widenTypeParameter(receiver) match {
       case ct: ClassType =>
         val optTfd = s.lookupFunction(id)
           .filter(fd => tps.size == fd.tparams.size && args.size == fd.params.size)

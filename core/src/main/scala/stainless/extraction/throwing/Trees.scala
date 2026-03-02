@@ -21,7 +21,7 @@ trait Trees extends imperative.Trees { self =>
     *             is `stainless.lang.Exception` and defines the exceptional cases of this function.
     */
   sealed case class Throwing(body: Expr, pred: Lambda) extends Expr with CachingTyped {
-    override protected def computeType(using Symbols): Type = (pred.getType, getExceptionType) match {
+    override protected def computeType(using Symbols, TypeComputeOptions): Type = (pred.getType, getExceptionType) match {
       case (FunctionType(Seq(expType), BooleanType()), Some(tpe)) => checkParamType(tpe, expType, body.getType)
       case _ => Untyped
     }
@@ -32,7 +32,7 @@ trait Trees extends imperative.Trees { self =>
     * @param ex The exception to be thrown.
     */
   sealed case class Throw(ex: Expr) extends Expr with CachingTyped {
-    override protected def computeType(using Symbols): Type = getExceptionType match {
+    override protected def computeType(using Symbols, TypeComputeOptions): Type = getExceptionType match {
       case Some(tpe) => checkParamType(ex.getType, tpe, NothingType())
       case _ => Untyped
     }
@@ -40,7 +40,7 @@ trait Trees extends imperative.Trees { self =>
 
   /** Try-catch-finally block. Corresponds to Scala's *try { ... } catch { ... } finally { ... }* */
   sealed case class Try(body: Expr, cases: Seq[MatchCase], finallizer: Option[Expr]) extends Expr with CachingTyped {
-    override protected def computeType(using s: Symbols): Type = getExceptionType match {
+    override protected def computeType(using s: Symbols, options: TypeComputeOptions): Type = getExceptionType match {
       case Some(tpe) if (
         cases.forall { case MatchCase(pat, guard, rhs) =>
           s.patternIsTyped(tpe, pat) &&

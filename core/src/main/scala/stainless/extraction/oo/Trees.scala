@@ -14,7 +14,7 @@ trait Trees extends innerfuns.Trees with Definitions { self =>
 
   /** $encodingof `new id(args)` */
   case class ClassConstructor(ct: ClassType, args: Seq[Expr]) extends Expr with CachingTyped {
-    protected def computeType(using Symbols): Type = ct.lookupClass match {
+    protected def computeType(using Symbols, TypeComputeOptions): Type = ct.lookupClass match {
       case Some(tcd) => checkParamTypes(args.map(_.getType), tcd.fields.map(_.tpe), ct)
       case _ => Untyped
     }
@@ -27,7 +27,7 @@ trait Trees extends innerfuns.Trees with Definitions { self =>
       case _ => None
     }
 
-    protected def computeType(using s: Symbols): Type = expr.getType match {
+    protected def computeType(using s: Symbols, options: TypeComputeOptions): Type = expr.getType match {
       case ct: ClassType =>
         field.map(_.tpe).orElse((s.lookupFunction(selector), s.lookupClass(ct.id, ct.tps)) match {
           case (Some(fd), Some(tcd)) =>
@@ -42,14 +42,14 @@ trait Trees extends innerfuns.Trees with Definitions { self =>
 
   /** $encodingof `expr.isInstanceOf[tpe]` */
   case class IsInstanceOf(expr: Expr, tpe: Type) extends Expr with CachingTyped {
-    override protected def computeType(using s: Symbols): Type = {
+    override protected def computeType(using s: Symbols, options: TypeComputeOptions): Type = {
       if (s.typesCompatible(expr.getType, tpe)) BooleanType() else Untyped
     }
   }
 
   /** $encodingof `expr.asInstanceOf[tpe]` */
   case class AsInstanceOf(expr: Expr, tpe: Type) extends Expr with CachingTyped {
-    override protected def computeType(using s: Symbols): Type = {
+    override protected def computeType(using s: Symbols, options: TypeComputeOptions): Type = {
       if (s.typesCompatible(expr.getType, tpe)) tpe.getType else Untyped
     }
   }
@@ -135,7 +135,7 @@ trait Trees extends innerfuns.Trees with Definitions { self =>
 
   /** $encodingof `expr.Type[A, B, ...]` */
   case class TypeApply(selector: TypeSelect, tps: Seq[Type]) extends Type {
-    override protected def computeType(using Symbols): Type = {
+    override protected def computeType(using Symbols, TypeComputeOptions): Type = {
       if (!wellKinded) Untyped
       else if (applied.isAbstract) this
       else resolve.getType

@@ -18,13 +18,13 @@ trait Trees extends oo.Trees with Definitions { self =>
     * @param expr The expression to return
     */
   sealed case class Return(expr: Expr) extends Expr with CachingTyped {
-    override protected def computeType(using Symbols): Type =
+    override protected def computeType(using Symbols, TypeComputeOptions): Type =
       if (expr.isTyped) NothingType() else Untyped
   }
 
   /** Swap indices from two (not necessarily distinct) arrays */
   sealed case class Swap(array1: Expr, index1: Expr, array2: Expr, index2: Expr) extends Expr with CachingTyped {
-    override protected def computeType(using Symbols): Type =
+    override protected def computeType(using Symbols, TypeComputeOptions): Type =
       (array1.getType, array2.getType) match {
         case (ArrayType(base1), ArrayType(base2)) if base1 == base2 =>
           checkParamTypes(Seq(index1, index2), Seq(Int32Type(), Int32Type()), UnitType())
@@ -37,7 +37,7 @@ trait Trees extends oo.Trees with Definitions { self =>
 
     /** Swap values from two (not necessarily distinct) cells */
   sealed case class CellSwap(cell1: Expr, cell2: Expr) extends Expr with CachingTyped {
-    override protected def computeType(using s: Symbols): Type =
+    override protected def computeType(using s: Symbols, options: TypeComputeOptions): Type =
       val cellClassDef = s.lookup.get[ClassDef]("stainless.lang.Cell")
       (cell1.getType, cell2.getType) match {
         case (ClassType(id1, tps1), ClassType(id2, tps2)) if cellClassDef.isDefined && id1 == cellClassDef.get.id && id1 == id2 && tps1 == tps2 => {
@@ -50,18 +50,18 @@ trait Trees extends oo.Trees with Definitions { self =>
 
   /** $encodingof `{ expr1; expr2; ...; exprn; last }` */
   case class Block(exprs: Seq[Expr], last: Expr) extends Expr with CachingTyped {
-    protected def computeType(using Symbols): Type = if (exprs.forall(_.isTyped)) last.getType else Untyped
+    protected def computeType(using Symbols, TypeComputeOptions): Type = if (exprs.forall(_.isTyped)) last.getType else Untyped
   }
 
   /** $encoding of `var vd = value; body` */
   case class LetVar(vd: ValDef, value: Expr, body: Expr) extends Expr with CachingTyped {
-    protected def computeType(using Symbols): Type =
+    protected def computeType(using Symbols, TypeComputeOptions): Type =
       checkParamType(value, vd.tpe, body.getType)
   }
 
   /** $encodingof `vd = value` */
   case class Assignment(v: Variable, value: Expr) extends Expr with CachingTyped {
-    protected def computeType(using Symbols): Type =
+    protected def computeType(using Symbols, TypeComputeOptions): Type =
       checkParamType(value, v.tpe, UnitType())
   }
 
@@ -75,7 +75,7 @@ trait Trees extends oo.Trees with Definitions { self =>
       }
     }
 
-    protected def computeType(using s: Symbols): Type = {
+    protected def computeType(using s: Symbols, options: TypeComputeOptions): Type = {
       getField
         .filter(vd => s.isSubtypeOf(value.getType, vd.tpe))
         .map(_ => UnitType())
@@ -85,7 +85,7 @@ trait Trees extends oo.Trees with Definitions { self =>
 
   /** $encodingof `(while(cond) { ... }).invariant(pred).noReturnInvariant(pred2)`*/
   case class While(cond: Expr, body: Expr, pred: Option[Expr], pred2: Option[Expr], flags: Seq[Flag]) extends Expr with CachingTyped {
-    protected def computeType(using s: Symbols): Type =
+    protected def computeType(using s: Symbols, options: TypeComputeOptions): Type =
       if (
         s.isSubtypeOf(cond.getType, BooleanType()) &&
         body.isTyped &&
@@ -96,7 +96,7 @@ trait Trees extends oo.Trees with Definitions { self =>
 
   /** $encodingof `array(index) = value` */
   case class ArrayUpdate(array: Expr, index: Expr, value: Expr) extends Expr with CachingTyped {
-    protected def computeType(using Symbols): Type = getArrayType(array) match {
+    protected def computeType(using Symbols, TypeComputeOptions): Type = getArrayType(array) match {
       case at @ ArrayType(base) => checkParamTypes(Seq(index, value), Seq(Int32Type(), base), UnitType())
       case _ => Untyped
     }
@@ -109,14 +109,14 @@ trait Trees extends oo.Trees with Definitions { self =>
 
   /** $encodingof `MutableMap.withDefaultValue[From,To](default)` */
   sealed case class MutableMapWithDefault(from: Type, to: Type, default: Expr) extends Expr with CachingTyped {
-    override protected def computeType(using Symbols): Type = {
+    override protected def computeType(using Symbols, TypeComputeOptions): Type = {
       checkParamType(default, FunctionType(Seq(), to), getMutableMapType(MutableMapType(from, to)))
     }
   }
 
   /** $encodingof `map.apply(key)` (or `map(key)`) */
   sealed case class MutableMapApply(map: Expr, key: Expr) extends Expr with CachingTyped {
-    override protected def computeType(using Symbols): Type = getMutableMapType(map) match {
+    override protected def computeType(using Symbols, TypeComputeOptions): Type = getMutableMapType(map) match {
       case MutableMapType(from, to) => checkParamType(key, from, to)
       case _ => Untyped
     }
@@ -124,7 +124,7 @@ trait Trees extends oo.Trees with Definitions { self =>
 
   /** $encodingof `map.updated(key, value)` (or `map + (key -> value)`) */
   sealed case class MutableMapUpdated(map: Expr, key: Expr, value: Expr) extends Expr with CachingTyped {
-    override protected def computeType(using Symbols): Type = getMutableMapType(map) match {
+    override protected def computeType(using Symbols, TypeComputeOptions): Type = getMutableMapType(map) match {
       case mmt @ MutableMapType(from, to) => checkParamType(key, from, getMutableMapType(mmt, MutableMapType(from, value.getType)))
       case _ => Untyped
     }
@@ -132,12 +132,12 @@ trait Trees extends oo.Trees with Definitions { self =>
 
   /** $encodingof `map.duplicate()` */
   sealed case class MutableMapDuplicate(map: Expr) extends Expr with CachingTyped {
-    override protected def computeType(using Symbols): Type = getMutableMapType(map)
+    override protected def computeType(using Symbols, TypeComputeOptions): Type = getMutableMapType(map)
   }
 
   /** $encodingof `map.update(key, value)` (or `map(key) = value`) */
   sealed case class MutableMapUpdate(map: Expr, key: Expr, value: Expr) extends Expr with CachingTyped {
-    override protected def computeType(using Symbols): Type = getMutableMapType(map) match {
+    override protected def computeType(using Symbols, TypeComputeOptions): Type = getMutableMapType(map) match {
       case mmt @ MutableMapType(from, to) => checkParamTypes(Seq(key, value), Seq(from, to), UnitType())
       case _ => Untyped
     }
@@ -145,34 +145,34 @@ trait Trees extends oo.Trees with Definitions { self =>
 
   /** $encodingof `old(e)` */
   case class Old(e: Expr) extends Expr with CachingTyped {
-    protected def computeType(using Symbols): Type = e.getType
+    protected def computeType(using Symbols, TypeComputeOptions): Type = e.getType
   }
 
   /** $encodingof `snapshot(e)` */
   case class Snapshot(e: Expr) extends Expr with CachingTyped {
-    protected def computeType(using Symbols): Type = e.getType
+    protected def computeType(using Symbols, TypeComputeOptions): Type = e.getType
   }
 
   /** copy primitive, like `Snapshot` but usable outside of the ghost context. Mostly to work-around anti-aliasing. */
   case class FreshCopy(e: Expr) extends Expr with CachingTyped {
-    protected def computeType(using Symbols): Type = e.getType
+    protected def computeType(using Symbols, TypeComputeOptions): Type = e.getType
   }
 
   /** $encodingof `a & b` for Boolean; desuggared to { val l = lhs; val r = rhs; l && r } when removing imperative style. */
   case class BoolBitwiseAnd(lhs: Expr, rhs: Expr) extends Expr with CachingTyped {
-    protected def computeType(using Symbols): Type =
+    protected def computeType(using Symbols, TypeComputeOptions): Type =
       checkAllTypes(Seq(lhs, rhs), BooleanType(), BooleanType())
   }
 
   /** $encodingof `a | b` for Boolean; desuggared to { val l = lhs; val r = rhs; l || r } when removing imperative style. */
   case class BoolBitwiseOr(lhs: Expr, rhs: Expr) extends Expr with CachingTyped {
-    protected def computeType(using Symbols): Type =
+    protected def computeType(using Symbols, TypeComputeOptions): Type =
       checkAllTypes(Seq(lhs, rhs), BooleanType(), BooleanType())
   }
 
   /** $encodingof `a ^ b` for Boolean; desuggared to { val l = lhs; val r = rhs; l != r } when removing imperative style. */
   case class BoolBitwiseXor(lhs: Expr, rhs: Expr) extends Expr with CachingTyped {
-    protected def computeType(using Symbols): Type =
+    protected def computeType(using Symbols, TypeComputeOptions): Type =
       checkAllTypes(Seq(lhs, rhs), BooleanType(), BooleanType())
   }
 
@@ -193,7 +193,7 @@ trait Trees extends oo.Trees with Definitions { self =>
 
   /** Represents a `reads(objs)` contract. `objs` should be a set of references, and the body is what follows the contract. */
   case class Reads(objs: Expr, body: Expr) extends Expr with CachingTyped {
-    protected def computeType(using s: Symbols): Type = objs.getType match {
+    protected def computeType(using s: Symbols, options: TypeComputeOptions): Type = objs.getType match {
       case SetType(objTpe) if s.isSubtypeOf(objTpe, AnyHeapRefType()) => body.getType
       case _ => Untyped
     }
@@ -201,7 +201,7 @@ trait Trees extends oo.Trees with Definitions { self =>
 
   /** Represents a `modifies(objs)` contract. `objs` should be a set of references, and the body is what follows the contract. */
   case class Modifies(objs: Expr, body: Expr) extends Expr with CachingTyped {
-    protected def computeType(using s: Symbols): Type = objs.getType match {
+    protected def computeType(using s: Symbols, options: TypeComputeOptions): Type = objs.getType match {
       case SetType(objTpe) if s.isSubtypeOf(objTpe, AnyHeapRefType()) => body.getType
       case _ => Untyped
     }
