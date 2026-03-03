@@ -726,7 +726,12 @@ class TypeChecker(val program: StainlessProgram, val context: inox.Context, val 
       case Equals(e1, e2) =>
         val (tpe1, tr1) = inferType(tc, e1)
         val (tpe2, tr2) = inferType(tc, e2)
-        if (tpe1.getType != tpe2.getType) {
+        if (tpe1.getType != tpe2.getType) { // Maybe it's okay to drop refinments for this check?
+          // Produced by TypeEncoding
+
+          // Comparing elements of different types:
+          // res of type { x: Object | (A(x)): @dropConjunct  } and
+          // empty(thiss) of type Object
           reporter.fatalError(e.getPos, s"Comparing elements of different types:\n${e1.asString} of type ${tpe1.asString} and\n${e2.asString} of type ${tpe2.asString}")
         }
         (BooleanType(), tr1 ++ tr2)

@@ -136,6 +136,7 @@ trait Trees extends innerfuns.Trees with Definitions { self =>
   /** $encodingof `expr.Type[A, B, ...]` */
   case class TypeApply(selector: TypeSelect, tps: Seq[Type]) extends Type {
     override protected def computeType(using Symbols, TypeComputeOptions): Type = {
+      // ???
       if (!wellKinded) Untyped
       else if (applied.isAbstract) this
       else resolve.getType

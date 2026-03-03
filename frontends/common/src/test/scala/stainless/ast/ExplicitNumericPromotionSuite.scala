@@ -181,7 +181,7 @@ class ExplicitNumericPromotionSuite extends AnyFunSuite with InputUtils {
   }
 
   case class V(name: String, typ: Type) extends Expr {
-    def getType(using s: Symbols, options: TypeComputeOptions = TypeComputeOptions.NoOptions): Type = typ
+    def getType(using s: Symbols, options: TypeComputeOptions = TypeComputeOptions.NoOptions): Type = typ.getType
 
     override def equals(o: Any) = o match {
       case Var(nme, `typ`) => nme.dropWhile(_ == '~') == name

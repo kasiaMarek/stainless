@@ -80,8 +80,25 @@ trait TypeOps extends innerfuns.TypeOps { self =>
 
     case (adt1: ADTType, adt2: ADTType) if adt1 == adt2 => Some(adt1)
 
-    case (rt: RefinementType, _) => Some(typeBound(rt.getType, tp2, upper))
-    case (_, rt: RefinementType) => Some(typeBound(tp1, rt.getType, upper))
+    case (rt: RefinementType, _) => 
+      typeBound(rt.vd.getType, tp2, upper) match {
+        case Untyped => Some(Untyped)
+        case lub if upper =>
+          // if both were refinement types, we don't check here that the properties are compatible
+          // not sure if we should
+          Some(lub)
+        case lub => Some(RefinementType(rt.vd.copy(tpe = lub), rt.prop))
+      }
+
+    case (_, rt: RefinementType) =>
+      typeBound(tp1, rt.vd.getType, upper) match {
+        case Untyped => Some(Untyped)
+        // this is incorrect
+        // lub(Int, x: Int with x > 0, upper = true) = Untyped
+        // since Int with x > 0 <: Int, not the other way around
+        case lub if upper => Some(RefinementType(rt.vd.copy(tpe = lub), rt.prop))
+        case lub => Some(lub)
+      }
 
     case (pi: PiType, _) => Some(typeBound(pi.getType, tp2, upper))
     case (_, pi: PiType) => Some(typeBound(tp1, pi.getType, upper))
