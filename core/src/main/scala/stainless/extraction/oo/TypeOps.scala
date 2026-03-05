@@ -80,8 +80,21 @@ trait TypeOps extends innerfuns.TypeOps { self =>
 
     case (adt1: ADTType, adt2: ADTType) if adt1 == adt2 => Some(adt1)
 
-    case (rt: RefinementType, _) => Some(typeBound(rt.getType, tp2, upper))
-    case (_, rt: RefinementType) => Some(typeBound(tp1, rt.getType, upper))
+    case (rt1: RefinementType, rt2: RefinementType) if rt1 == rt2 => Some(rt1)
+
+    case (rt: RefinementType, _) =>
+      typeBound(rt.vd.getType, tp2, upper) match {
+        case Untyped => Some(Untyped)
+        case lub if upper => Some(lub)
+        case lub => Some(RefinementType(rt.vd.copy(tpe = lub), rt.prop))
+      }
+
+    case (_, rt: RefinementType) =>
+      typeBound(tp1, rt.vd.getType, upper) match {
+        case Untyped => Some(Untyped)
+        case lub if upper => Some(RefinementType(rt.vd.copy(tpe = lub), rt.prop))
+        case lub => Some(lub)
+      }
 
     case (pi: PiType, _) => Some(typeBound(pi.getType, tp2, upper))
     case (_, pi: PiType) => Some(typeBound(tp1, pi.getType, upper))
@@ -199,8 +212,8 @@ trait TypeOps extends innerfuns.TypeOps { self =>
     t1.isTyped && t2.isTyped && (lub == t2.getType || lub.getType == t2.getType)
   }
 
-  def typesCompatible(t1: Type, t2s: Type*) = {
-    leastUpperBound(t1 +: t2s) != Untyped
+  def typesCompatible(t1: Type, t2: Type) = {
+    leastUpperBound(t1 +: Seq(t2)) != Untyped
   }
 
   override protected def unificationConstraints(t1: Type, t2: Type, free: Seq[TypeParameter]): List[(TypeParameter, Type)] = (t1, t2) match {

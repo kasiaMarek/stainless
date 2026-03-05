@@ -27,7 +27,7 @@ trait Trees extends innerfuns.Trees with Definitions { self =>
       case _ => None
     }
 
-    protected def computeType(using s: Symbols): Type = expr.getType match {
+    protected def computeType(using s: Symbols): Type = getClassType(expr) match {
       case ct: ClassType =>
         field.map(_.tpe).orElse((s.lookupFunction(selector), s.lookupClass(ct.id, ct.tps)) match {
           case (Some(fd), Some(tcd)) =>
@@ -35,7 +35,7 @@ trait Trees extends innerfuns.Trees with Definitions { self =>
           case _ =>
             None
         }).getOrElse(Untyped)
-      case tp =>
+      case _ =>
         Untyped
     }
   }
@@ -167,6 +167,7 @@ trait Trees extends innerfuns.Trees with Definitions { self =>
   protected def getClassType(tpe: Typed, tpes: Typed*)(using Symbols): Type =
     widenTypeParameter(tpe.getType) match {
       case ct: ClassType => checkAllTypes(tpes, ct, ct)
+      case RefinementType(vd, _) => getClassType(vd.getType, tpes*)
       case _ => Untyped
     }
 
@@ -174,7 +175,10 @@ trait Trees extends innerfuns.Trees with Definitions { self =>
     super.getBVType(widenTypeParameter(tpe), tpes*)
 
   override protected def getADTType(tpe: Typed, tpes: Typed*)(using Symbols): Type = {
-    super.getADTType(widenTypeParameter(tpe), tpes*)
+    widenTypeParameter(tpe.getType) match {
+      case RefinementType(vd, _) => getADTType(vd.getType, tpes*)
+      case _ => super.getADTType(widenTypeParameter(tpe), tpes*)
+    }
   }
 
   override protected def getTupleType(tpe: Typed, tpes: Typed*)(using Symbols): Type =
