@@ -186,6 +186,7 @@ trait SymbolOps extends inox.ast.SymbolOps with TypeOps { self =>
           val (cases :+ ((_, rhs, _))) = condsAndRhs: @unchecked
           (cases, rhs)
         } else {
+          // println(s"WAR: ${m.getType}")
           (condsAndRhs, Error(m.getType, "match exhaustiveness").copiedFrom(m))
         }
 

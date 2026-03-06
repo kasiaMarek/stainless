@@ -98,8 +98,8 @@ trait TypeOps extends inox.ast.TypeOps {
     case (adt1: ADTType, adt2: ADTType) if adt1.id == adt2.id =>
       (adt1.tps zip adt2.tps).toList flatMap (p => unificationConstraints(p._1, p._2, free))
 
-    case (rt: RefinementType, _) => unificationConstraints(rt.getType, t2, free)
-    case (_, rt: RefinementType) => unificationConstraints(t1, rt.getType, free)
+    case (rt: RefinementType, _) => println(s"LOOPING FORVER"); unificationConstraints(rt.getType, t2, free)
+    case (_, rt: RefinementType) => println(s"LOOPING FORVER"); unificationConstraints(t1, rt.getType, free)
 
     case (pi: PiType, _) => unificationConstraints(pi.getType, t2, free)
     case (_, pi: PiType) => unificationConstraints(t1, pi.getType, free)

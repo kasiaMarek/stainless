@@ -101,14 +101,28 @@ trait Expressions extends inox.ast.Expressions with Types { self: Trees =>
     require(cases.nonEmpty)
 
     override protected def computeType(using s: Symbols): Type =
+      // import scala.util.chaining.*
       if (cases forall { case MatchCase(pat, guard, rhs) =>
         s.patternIsTyped(scrutinee.getType, pat) &&
         guard.forall(_.getType == BooleanType())
       }) {
         s.leastUpperBound(cases.map(_.rhs.getType))
+        // .tap{
+        //   case Untyped => println(s"WARRR: ${cases.map(_.rhs)} ${cases.map(_.rhs.getClass())} ${cases.map(_.rhs.getType)}")
+        //   case _ =>
+        // }
       } else {
         Untyped
       }
+      // .tap {
+      //   case Untyped =>
+      //     cases.tail.head match { case MatchCase(pat, guard, rhs) =>
+      //       println(s"Checking pattern ${pat} ${pat.getClass()} with guard ${guard} and rhs ${rhs}")
+      //       println(s"Scrutinee type: ${scrutinee.getType}; ${scrutinee.getClass()}")
+      //       println(s"Pattern is typed: ${s.patternIsTyped(scrutinee.getType, pat)}; guards ok: ${guard.forall(_.getType == BooleanType())}")
+      //     }
+      //   case _ =>
+      // }
   }
 
   /** $encodingof `case pattern [if optGuard] => rhs`

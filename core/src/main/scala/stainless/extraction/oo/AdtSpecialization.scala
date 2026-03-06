@@ -110,6 +110,7 @@ class AdtSpecialization(override val s: Trees, override val t: Trees)
           t.ADTType(id, tps map transform).copiedFrom(tpe)
         } else {
           val vd = t.ValDef(FreshIdentifier("v"), t.ADTType(root(id), tps map transform).copiedFrom(tpe)).copiedFrom(tpe)
+          // adds refinement
           t.RefinementType(vd, t.orJoin(constructors(id).map { cid =>
             t.IsConstructor(vd.toVariable, constructorID(cid)).copiedFrom(tpe)
           }).copiedFrom(tpe)).copiedFrom(tpe)
@@ -197,6 +198,7 @@ class AdtSpecialization(override val s: Trees, override val t: Trees)
 
           val objectFunction = if (isCaseObject(cd.id)) {
             val vd = t.ValDef.fresh("v", t.ADTType(root(cd.id), cd.typeArgs map (transform(_))).setPos(cd)).setPos(cd)
+            // adds refinement
             val returnType = t.RefinementType(vd, t.IsConstructor(vd.toVariable, constructorID(cd.id)).setPos(cd)).setPos(cd)
             Some(mkFunDef(caseObject(cd.id), t.Inline, t.Derived(Some(cd.id)))()(_ => (
               Seq(),
@@ -216,6 +218,7 @@ class AdtSpecialization(override val s: Trees, override val t: Trees)
               def condition(e: t.Expr): t.Expr = t.orJoin(cons.map(t.IsConstructor(e, _)))
 
               val vd = t.ValDef.fresh("v", base)
+              // adds refinement
               val returnType = t.RefinementType(vd, condition(vd.toVariable))
               (Seq("x" :: base), T(option)(returnType), { case Seq(x) =>
                 if_ (condition(x)) {

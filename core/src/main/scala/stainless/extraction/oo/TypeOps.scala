@@ -80,8 +80,13 @@ trait TypeOps extends innerfuns.TypeOps { self =>
 
     case (adt1: ADTType, adt2: ADTType) if adt1 == adt2 => Some(adt1)
 
-    case (rt: RefinementType, _) => Some(typeBound(rt.getType, tp2, upper))
-    case (_, rt: RefinementType) => Some(typeBound(tp1, rt.getType, upper))
+    case (rt1: RefinementType, rt2: RefinementType) if rt1 == rt2 => Some(rt1)
+    case (_, rt: RefinementType) =>
+      // for upper bound we approx upper bound to `rt.vd.getType`
+      Some(typeBound(tp1, rt.vd.getType, upper))
+    case (rt: RefinementType, _) =>
+      // we can approx lower bound to bottom type
+      if upper then Some(tp2) else Some(NothingType())
 
     case (pi: PiType, _) => Some(typeBound(pi.getType, tp2, upper))
     case (_, pi: PiType) => Some(typeBound(tp1, pi.getType, upper))
@@ -195,12 +200,19 @@ trait TypeOps extends innerfuns.TypeOps { self =>
   override def greatestLowerBound(tps: Seq[Type]): Type = typeBound(tps, false)
 
   override def isSubtypeOf(t1: Type, t2: Type): Boolean = {
-    lazy val lub = leastUpperBound(t1, t2)
-    t1.isTyped && t2.isTyped && (lub == t2.getType || lub.getType == t2.getType)
+    val widenedT2 = t2 match {
+      // I think I have to drop the refinements recursively here
+      // so it also works e.g. for function types
+      // and then refinement types in covariant positions need to be approxed to botttom type
+      case rt: RefinementType => rt.vd.getType
+      case _ => t2
+    }
+    lazy val lub = leastUpperBound(t1, widenedT2)
+    t1.isTyped && widenedT2.isTyped && (lub == widenedT2.getType || lub.getType == widenedT2.getType)
   }
 
-  def typesCompatible(t1: Type, t2s: Type*) = {
-    leastUpperBound(t1 +: t2s) != Untyped
+  def typesCompatible(t1: Type, t2: Type) = {
+    leastUpperBound(t1 +: Seq(t2)) != Untyped
   }
 
   override protected def unificationConstraints(t1: Type, t2: Type, free: Seq[TypeParameter]): List[(TypeParameter, Type)] = (t1, t2) match {

@@ -50,14 +50,19 @@ class MeasureInference(override val s: Trees, override val t: Trees)(using overr
 
     class TransformerImpl(override val s: self.s.type, override val t: self.t.type)
       extends inox.transformers.ConcreteTreeTransformer(s, t) {
+      private def getADTType(e: Typed): Type = e.getType match {
+        case adt: ADTType => adt
+        case RefinementType(vd, _) => getADTType(vd)
+        case tp => tp
+      }
 
       override def transform(e: s.Expr): t.Expr = e match {
-        case Decreases(v: Variable, body) if v.getType.isInstanceOf[ADTType] =>
+        case Decreases(v: Variable, body) if getADTType(v).isInstanceOf[ADTType] =>
           t.Decreases(transform(size(v)), transform(body)).setPos(e)
 
         case Decreases(tup @ Tuple(ts), body) =>
           t.Decreases(t.Tuple(ts.map {
-            case v: Variable if v.getType.isInstanceOf[ADTType] => transform(size(v))
+            case v: Variable if getADTType(v).isInstanceOf[ADTType] => transform(size(v))
             case e => transform(e)
           }).copiedFrom(tup), transform(body)).setPos(e)
 
@@ -66,8 +71,8 @@ class MeasureInference(override val s: Trees, override val t: Trees)(using overr
       }
 
       private def size(v: Variable): Expr = {
-        require(v.getType.isInstanceOf[ADTType])
-        val ADTType(id, tps) = v.getType: @unchecked
+        require(getADTType(v).isInstanceOf[ADTType])
+        val ADTType(id, tps) = getADTType(v): @unchecked
         FunctionInvocation(sizes.fullSizeId(symbols.sorts(id)), tps, Seq(v)).setPos(v)
       }
     }
@@ -215,6 +220,7 @@ class MeasureInference(override val s: Trees, override val t: Trees)(using overr
           val newVd = t.ValDef.fresh("arg", original.returnType)
           val newMap: Map[t.ValDef, t.Expr] = Map((nlarg, newVd.toVariable))
           val newNBody: t.Expr = t.exprOps.replaceFromSymbols(newMap, nbody)(using t.convertToVal)
+          // adds refinement
           val refinement = t.RefinementType(newVd, newNBody)
           original.copy(returnType = refinement).copiedFrom(original)
         case Some(post@t.Lambda(_, _)) =>

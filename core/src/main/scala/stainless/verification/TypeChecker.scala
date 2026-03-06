@@ -726,9 +726,10 @@ class TypeChecker(val program: StainlessProgram, val context: inox.Context, val 
       case Equals(e1, e2) =>
         val (tpe1, tr1) = inferType(tc, e1)
         val (tpe2, tr2) = inferType(tc, e2)
-        if (tpe1.getType != tpe2.getType) {
-          reporter.fatalError(e.getPos, s"Comparing elements of different types:\n${e1.asString} of type ${tpe1.asString} and\n${e2.asString} of type ${tpe2.asString}")
-        }
+        // not sure if we can be this strict with refinements
+        // if (isSubtypeOf(tpe1, tpe2) || isSubtypeOf(tpe2, tpe1)) {
+        //   reporter.fatalError(e.getPos, s"Comparing elements of different types:\n${e1.asString} of type ${tpe1.asString} and\n${e2.asString} of type ${tpe2.asString}")
+        // }
         (BooleanType(), tr1 ++ tr2)
 
       case FPEquals(e1, e2) =>
@@ -1308,6 +1309,7 @@ class TypeChecker(val program: StainlessProgram, val context: inox.Context, val 
         isSubtype(tc, tp1, vd.tpe) ++ buildVC(tc.withVCKind(VCKind.RefinementSubtype), prop)
 
       case (RefinementType(vd, prop), _) =>
+        // why ?
         isSubtype(tc, vd.tpe, tp2)
 
       case (FunctionType(from1, to1), FunctionType(from2, to2)) =>
