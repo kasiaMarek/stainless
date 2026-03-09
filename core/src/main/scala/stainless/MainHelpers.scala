@@ -68,6 +68,7 @@ trait MainHelpers extends inox.MainHelpers { self =>
     genc.optOutputFile -> Description(General, "File name for GenC output"),
     genc.optIncludes -> Description(General, "Add includes in GenC output"),
     optWatch -> Description(General, "Re-run stainless upon file changes"),
+    optForceNoTypeEnc -> Description(General, "Abort if the TypeEncoding extraction phase would run"),
     optCompact -> Description(General, "Print only invalid elements of summaries"),
     optExtendedSummary -> Description(General, "Print an extended summary of all Stainless phases"),
     frontend.optBatchedProgram -> Description(General, "Process the whole program together, skip dependency analysis"),

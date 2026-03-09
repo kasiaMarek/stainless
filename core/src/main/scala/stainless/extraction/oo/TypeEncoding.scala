@@ -1418,7 +1418,14 @@ class TypeEncoding(override val s: Trees, override val t: Trees)
     }
     val affectedFns = fns.collect { case FunctionSummary.Transformed(fid) => fid }.toSet
     val affectedSorts = sorts.collect { case SortSummary.Transformed(sid) => sid }.toSet
-    ExtractionSummary.Leaf(TypeEncoding)(TypeEncoding.SummaryData(affectedFns, affectedSorts, classes.toSet))
+    val summary = TypeEncoding.SummaryData(affectedFns, affectedSorts, classes.toSet)
+    handleForceNoTypeEnc(summary)
+    ExtractionSummary.Leaf(TypeEncoding)(summary)
+  }
+
+  private def handleForceNoTypeEnc(summary: TypeEncoding.SummaryData): Unit = {
+    if isForceNoTypeEncOn(using context) && summary.hasRun
+    then context.reporter.fatalError("Aborting because --force-no-typenc forbids running phase TypeEncoding")
   }
 }
 
