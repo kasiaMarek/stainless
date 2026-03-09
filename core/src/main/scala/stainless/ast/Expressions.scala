@@ -116,7 +116,7 @@ trait Expressions extends inox.ast.Expressions with Types { self: Trees =>
       }
       // .tap {
       //   case Untyped =>
-      //     cases.tail.head match { case MatchCase(pat, guard, rhs) =>
+      //     cases.foreach { case MatchCase(pat, guard, rhs) =>
       //       println(s"Checking pattern ${pat} ${pat.getClass()} with guard ${guard} and rhs ${rhs}")
       //       println(s"Scrutinee type: ${scrutinee.getType}; ${scrutinee.getClass()}")
       //       println(s"Pattern is typed: ${s.patternIsTyped(scrutinee.getType, pat)}; guards ok: ${guard.forall(_.getType == BooleanType())}")

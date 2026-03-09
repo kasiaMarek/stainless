@@ -26,7 +26,7 @@ trait TypeOps extends inox.ast.TypeOps {
         ob.forall(vd => isSubtypeOf(vd.getType, in)) &&
         isSubtypeOf(lit.getType, in)
 
-      case ADTPattern(ob, id, tps, subs) => in.getType match {
+      case ADTPattern(ob, id, tps, subs) => dropTopLevelTypeRefinement(in) match {
         case ADTType(sort, tps2) =>
           tps.map(_.getType) == tps2 &&
           ob.forall(vd => isSubtypeOf(vd.getType, in)) &&
@@ -39,7 +39,7 @@ trait TypeOps extends inox.ast.TypeOps {
         case _ => false
       }
 
-      case TuplePattern(ob, subs) => in match {
+      case TuplePattern(ob, subs) => dropTopLevelTypeRefinement(in) match {
         case TupleType(tps) =>
           tps.size == subs.size &&
           ob.forall(vd => isSubtypeOf(vd.getType, in)) &&

@@ -80,13 +80,25 @@ trait TypeOps extends innerfuns.TypeOps { self =>
 
     case (adt1: ADTType, adt2: ADTType) if adt1 == adt2 => Some(adt1)
 
-    case (rt1: RefinementType, rt2: RefinementType) if rt1 == rt2 => Some(rt1)
-    case (_, rt: RefinementType) =>
-      // for upper bound we approx upper bound to `rt.vd.getType`
-      Some(typeBound(tp1, rt.vd.getType, upper))
-    case (rt: RefinementType, _) =>
-      // we can approx lower bound to bottom type
-      if upper then Some(tp2) else Some(NothingType())
+    case (RefinementType(vd1, p1), RefinementType(vd2, p2)) =>
+      typeBound(vd1.getType, vd2.getType, upper) match {
+        case Untyped => Some(Untyped)
+        case underlying =>
+          val joinedProp = if (p1 == p2) p1 else if (upper) Or(Seq(p1, p2)) else And(Seq(p1, p2))
+          Some(RefinementType(vd1.copy(tpe = underlying), joinedProp))
+      }
+    case (_, RefinementType(vd, prop)) =>
+      typeBound(tp1, vd.getType, upper) match {
+        case Untyped => Some(Untyped)
+        case lub if upper => Some(lub)
+        case lub => Some(RefinementType(vd.copy(tpe = lub), prop))
+      }
+    case (RefinementType(vd, prop), _) =>
+      typeBound(vd.getType, tp2, upper) match {
+        case Untyped => Some(Untyped)
+        case lub if upper => Some(lub)
+        case lub => Some(RefinementType(vd.copy(tpe = lub), prop))
+      }
 
     case (pi: PiType, _) => Some(typeBound(pi.getType, tp2, upper))
     case (_, pi: PiType) => Some(typeBound(tp1, pi.getType, upper))
@@ -199,16 +211,34 @@ trait TypeOps extends innerfuns.TypeOps { self =>
   override def greatestLowerBound(tp1: Type, tp2: Type): Type = typeBound(tp1, tp2, false)
   override def greatestLowerBound(tps: Seq[Type]): Type = typeBound(tps, false)
 
-  override def isSubtypeOf(t1: Type, t2: Type): Boolean = {
-    val widenedT2 = t2 match {
-      // I think I have to drop the refinements recursively here
-      // so it also works e.g. for function types
-      // and then refinement types in covariant positions need to be approxed to botttom type
-      case rt: RefinementType => rt.vd.getType
-      case _ => t2
+  // TODO: fix this, it should consider the variance of type parameters.
+  protected def dropRefinements(tp: Type, upper: Boolean): Type = 
+    tp match {
+      case RefinementType(vd, _) if upper => dropRefinements(vd.getType, upper)
+      case RefinementType(vd, _) => NothingType()
+      case TupleType(tps) => TupleType(tps.map(dropRefinements(_, upper)))
+      // case ADTType(id, tps) => ADTType(id, tps.map(dropRefinements(_, upper)))
+      // case MapType(from, to) => MapType(dropRefinements(from, !upper), dropRefinements(to, upper))
+      // case ArrayType(base) => ArrayType(dropRefinements(base, upper))
+      // case SetType(base) => SetType(dropRefinements(base, upper))
+      // case BagType(base) => BagType(dropRefinements(base, upper))
+      // case FunctionType(from, to) => FunctionType(from.map(dropRefinements(_, !upper)), dropRefinements(to, upper))
+      // case TypeApply(selector, tps) => TypeApply(selector, tps.map(dropRefinements(_, upper)))
+      // case TypeBounds(lo, hi, tps) => TypeBounds(dropRefinements(lo, upper), dropRefinements(hi, upper), tps)
+      // case ClassType(id, tps) => ClassType(id, tps.map(dropRefinements(_, upper)))
+      // case PiType(params, res) => PiType(params.map(vd => vd.copy(tpe = dropRefinements(vd.getType, upper))), dropRefinements(res, upper))
+      // case SigmaType(params, res) => SigmaType(params.map(vd => vd.copy(tpe = dropRefinements(vd.getType, upper))), dropRefinements(res, upper))
+      case _ => tp
     }
+
+  override def isSubtypeOf(t1: Type, t2: Type): Boolean = {
+    val widenedT2 = dropRefinements(t2, upper = true)
     lazy val lub = leastUpperBound(t1, widenedT2)
-    t1.isTyped && widenedT2.isTyped && (lub == widenedT2.getType || lub.getType == widenedT2.getType)
+    (t1.isTyped && widenedT2.isTyped && (lub == widenedT2.getType || lub.getType == widenedT2.getType)) match
+      case true => true
+      case false =>
+        println(s"Failed to prove that $t1 is a subtype of $t2, widened to $widenedT2, with lub $lub")
+        false
   }
 
   def typesCompatible(t1: Type, t2: Type) = {
