@@ -286,4 +286,11 @@ package object lang {
       /* objs.mapMerge(h1, h0) == h0 */ ???
   }
 
+  object Prop:
+    opaque type Prop = Unit
+    @ghost given Prop = ()
+    @ghost def since[T](ev : => T): Prop =
+      ev
+      ()
+
 }
